@@ -1,0 +1,7 @@
+*.cbp
+**cscope_file_list
+*.depend
+*.layout
+*.sublime-project
+*.sublime-workspace
+*.o
