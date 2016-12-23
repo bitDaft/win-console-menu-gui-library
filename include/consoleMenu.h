@@ -4,8 +4,8 @@
  * @Date                 : 18-Dec-2016
  * @Email                : anodecode@gmail.com
  * @Filename             : consoleMenu.h
- * @Last modified by     : meow-man
- * @Last modified time   : 21-Dec-2016
+ * @Last modified by     : Tausif Ali
+ * @Last modified time   : 24-Dec-2016
  * @Copyright            : stop stealing code, homo :P
  **/
 
@@ -46,20 +46,20 @@
 #define   cbackWHITE          240
 
 //error return defines
-#define MENU_SET_PREV         7
-#define HAS_PARENT            6
-#define RET_BACK              5
-#define NOT_ON_MENU           4
-#define MOUSE_LEFT_PRESS      3
-#define RET_CLEAR             2
-#define RET_SUCCESS           1
-#define RET_FAILURE           -1
-#define OPT_NOT_SET           -2
-#define OPT_SET_PREV          -4
-#define MENU_OVERFLOW         -5
-#define LINE_MENU_OVERFLOW    -6
-#define MENU_NOT_SET          -7
-#define MENU_EMPTY            -8
+#define MENU_SET_PREV         -1
+#define HAS_PARENT            -2
+#define RET_BACK              -3
+#define NOT_ON_MENU           -4
+#define MOUSE_LEFT_PRESS      -5
+#define RET_CLEAR             -6
+#define RET_SUCCESS           -7
+#define RET_FAILURE           -8
+#define OPT_NOT_SET           -9
+#define OPT_SET_PREV          -10
+#define MENU_OVERFLOW         -11
+#define LINE_MENU_OVERFLOW    -12
+#define MENU_NOT_SET          -13
+#define MENU_EMPTY            -14
 
 //flags passed to paintBackground func
 #define ENABLE_PLAIN          1
@@ -81,8 +81,8 @@
 #define USE_KEY             2
 
 //implementing nested menu's
-#define IS_PARENT           1
-#define IS_CHILD            2
+#define IS_PARENT           0
+#define IS_CHILD            1
 
 /*
  * opening the application via terminal disables the reading of mouse inputs afaik
@@ -93,6 +93,54 @@
  * even i don't know how exactly most of these things work anymore
  */
 class consoleMenu;
+struct item;
+class invMenu;
+class inventory_item;
+
+class invMenu
+{
+public:
+
+  invMenu();
+  ~invMenu();
+//param column names , column width , no of column,x,y,view color,serial number bool.
+  int setViewOption( char **,  short *, unsigned short,short,short,unsigned short,bool);
+  int RegView();
+
+  int addEntry(char **);
+  int finalizeView();
+  int paintView();
+  int selectView();
+
+private:
+
+  unsigned short noOfColumns;
+  char **columnNames; //holds the title of each column
+  short *columnWidth;
+  int width,height;
+  bool optSet;
+  bool snCount;
+  bool viewSet;
+  unsigned int nrec;
+
+  short x,y;
+  unsigned short viewColor;
+
+  inventory_item *top;
+
+  void setColName(const char **);
+  void setColWidth(const short *);
+  void setNoOfColumns(const unsigned short);
+
+
+};
+
+struct inventory_item
+{
+  char **szRecord;
+  short ix,iy;
+  inventory_item *next;
+};
 
 //struct holding a menu item i guess
 
@@ -112,67 +160,68 @@ struct item
    ~item();
 };
 
-void clearScreen(short x, short y, unsigned long t = 80*25);
+void clearScreen(short, short, unsigned long = 80*25);
 
 class consoleMenu
 {
 public:
-consoleMenu(char[]);
-virtual ~consoleMenu();
+  consoleMenu(char[]);
+  ~consoleMenu();
 
-//this is the order of calling the functions setOptions to selectOption
-//divided into groups based on similarity of function
+  //this is the order of calling the functions setOptions to selectOption
+  //divided into groups based on similarity of function
 
-//options functions
-/** @param x,y coord ,menuBGch ,delay ,setBGf pbj , menuitemvisual , mouseorkey, ischildof **/
-short setOptions(short, short, char, int, int, int, int);
-void setOutcolor(unsigned short);
-void setmnBG(unsigned short);
+  //options functions
+  /** @param x,y coord ,menuBGch ,delay ,setBGf pbj , menuitemvisual , mouseorkey, ischildof **/
+  short setOptions(short, short, char, int, int, int, int);
+  void setOutcolor(unsigned short);
+  void setmnBG(unsigned short);
 
-int RegisterOptions();
-int Mset();
+  int RegisterOptions();
+  int Mset();
 
-int newItem(char *, void (*t)(), consoleMenu*);
+  int newItem(char *, void (*t)(), consoleMenu*);
 
-int paintBackground();
-int paintMenu();
-int selectOption();
+  int paintBackground();
+  int paintMenu();
+  int selectOption();
 
 protected:
 
 private:
-// friend item::item(char*,void (*t)(),consoleMenu*,int);
-static short has_parent;
-unsigned short colr, mnBG; //outside color and menu color
+  // friend item::item(char*,void (*t)(),consoleMenu*,int);
+  // static short has_parent;
+  unsigned short colr, mnBG; //outside color and menu color
 
-short x, y;                //coordinates of menu
-short Opts;                //checks whether the options of a menu has been set
-short Menuset;
-short childFlag;           //check whether it is a child
 
-char *szName;              // name of menu
-char menuBGch;             // menu bg character
+  bool Opts;                  //checks whether the options of a menu has been set
+  bool Menuset;
+  bool isChild;              //check whether it is a child
+  short x, y;                //coordinates of menu
 
-int ci;
-int pbj;                   //plain or picture or animation
-int MouseOrKey;            // no idea what it does
-int displayDelay;          //menu display delay for the oohs and aahs
-int menuItemVisual;        //menu visual flag
-int cLargestMenuItem;      //count of the largest item in menu
-int menuWidth, menuHeight; // self explanatory
+  char *szName;              // name of menu
+  char menuBGch;             // menu bg character
 
-item *start;
-consoleMenu *isChildOf;
+  int ci;
+  int pbj;                   //plain or picture or animation
+  int MouseOrKey;            // no idea what it does
+  int displayDelay;          //menu display delay for the oohs and aahs
+  int menuItemVisual;        //menu visual flag
+  int cLargestMenuItem;      //count of the largest item in menu
+  int menuWidth, menuHeight; // self explanatory
 
-void setMK(int);
-void setBGf(int);
-void setMBG(char);
-void setDelay(int);
-void setChildFlag(short);
-void setCoord(short, short);
-void setSuper(consoleMenu*);
-void setMenuItemVisual(int);
-void setcolor(unsigned short f, long t, short x, short y);
+  item *start;
+  consoleMenu *isChildOf;
+
+  void setMK(int);
+  void setBGf(int);
+  void setMBG(char);
+  void setDelay(int);
+  void setChildFlag(short);
+  void setCoord(short, short);
+  void setSuper(consoleMenu*);
+  void setMenuItemVisual(int);
+  void setcolor(unsigned short f, long t, short x, short y);
 };
 
 #endif // CONSOLEMENU_H
