@@ -365,6 +365,7 @@ int invMenu::addEntry(char **str)
     temp->ix=x;
   temp->iy=y+height;
   temp->next=NULL;
+
   if (top!=NULL) {
     inventory_item *ptr=top;
     while(ptr->next!=NULL)
@@ -402,7 +403,6 @@ int invMenu::paintView()
   int sk=1;
   char sl[3];
 
-
   for (size_t j = 0; j < nrec; j++) {
     sprintf(sl,"%d",sk);
     tx=rcd->ix;
@@ -421,12 +421,40 @@ int invMenu::paintView()
     }
     rcd=rcd->next;
   }
+  tx=rcd->ix;
+  ty=rcd->iy;
+  setclr(viewColor,width, x,ty);
+  gotoxyz(tx,ty);
+  puts(rcd->szRecord[0]);
+
   SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),cGRAY);
   return RET_SUCCESS;
 }
 
 int invMenu::finalizeView()
 {
+  inventory_item *temp=new inventory_item;
+  char str[]="back";
+  height++;
+  // nrec++;
+  temp->szRecord=new char*[1];
+  temp->szRecord[0]=new char[5];
+  strcpy(temp->szRecord[0],str);
+
+  temp->ix=(width%2)?(width/2)-2:((width+1)/2)-2;
+  temp->ix+=x;
+  temp->iy=y+height;
+  temp->next=NULL;
+
+  if (top!=NULL) {
+    inventory_item *ptr=top;
+    while(ptr->next!=NULL)
+      ptr=ptr->next;
+      ptr->next=temp;
+  } else {
+    top=temp;
+  }
+
   if (optSet) {
     viewSet=1;
   }else return OPT_NOT_SET;
