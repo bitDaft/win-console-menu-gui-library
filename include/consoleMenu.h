@@ -5,7 +5,7 @@
  * @Email                : anodecode@gmail.com
  * @Filename             : consoleMenu.h
  * @Last modified by     : Tausif Ali
- * @Last modified time   : 24-Dec-2016
+ * @Last modified time   : 27-Dec-2016
  * @Copyright            : stop stealing code, homo :P
  **/
 
@@ -78,7 +78,7 @@
 
 
 #define USE_MOUSE           1
-#define USE_KEY             2
+#define USE_KEY             2 //not implemented , nor any plans to
 
 //implementing nested menu's
 #define IS_PARENT           0
@@ -146,7 +146,7 @@ struct inventory_item
 
 struct item
 {
-   void        (*pf)();
+  //  void        (*pf)();
 
    int         midPos;
    int         length;
@@ -156,7 +156,8 @@ struct item
    item        *next;
    consoleMenu *mm;
 
-   item(char*, void(*t)(), consoleMenu*, int);
+  //  item(char*, void(*t)(), consoleMenu*, int);
+   item(char*, consoleMenu*, int);
    ~item();
 };
 
@@ -180,7 +181,8 @@ public:
   int RegisterOptions();
   int Mset();
 
-  int newItem(char *, void (*t)(), consoleMenu*);
+  // int newItem(char *, void (*t)(), consoleMenu*);
+  int newItem(char *, consoleMenu*);
 
   int paintBackground();
   int paintMenu();

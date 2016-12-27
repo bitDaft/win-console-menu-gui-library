@@ -4,28 +4,21 @@
  * @Email                : anodecode@gmail.com
  * @Filename             : consoleMenu.cpp
  * @Last modified by     : Tausif Ali
- * @Last modified time   : 24-Dec-2016
+ * @Last modified time   : 28-Dec-2016
  * @Copyright            : stop stealing code, homo :P
 **/
 
 #include "consoleMenu.h"
-#include <iostream>
+//#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
 #include <assert.h>
 
-// short consoleMenu::has_parent = 0;
-// const unsigned short inventory_item::cnt;
-
-
 void quit()
 {
   exit(0);
 }
-
-void bbk()
-{}
 
 void remove_scroll()
 {
@@ -173,13 +166,12 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
 
           if (mode & SELECT_BOX) *o = (ir.dwMousePosition.Y - iy) % 2 ? -1 : (ir.dwMousePosition.Y - iy + 1) / 2;
           else *o = ir.dwMousePosition.Y - iy;
-          cc= {x,py};
+          cc = {x,py};
 
           if ((py != ir.dwMousePosition.Y) && !(mode & SELECT_BOX))
             {
               FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG, w - 1, cc, &t);
               py = ir.dwMousePosition.Y;
-              cc= {x,py};
             }
           x++;
 
@@ -188,6 +180,7 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
           else if (mode & SELECT_TEXT)
             flags = cWHITE | mnBG;
 
+          cc = {x,py};
           FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), flags, w - 2, cc, &t);
         }
       else if (f)
@@ -216,14 +209,6 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
       wasPressed = 0;
       return MOUSE_LEFT_PRESS;
     }
-
-  //    if(ir.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED)
-  //    {
-  //        if(!wasPressed)
-  //            return MOUSE_LEFT_PRESS;
-  //        else wasPressed=1;
-  //    }else wasPressed=0;
-
   return RET_SUCCESS;
 }
 
@@ -238,8 +223,8 @@ void setclr(unsigned short m = cGRAY,
                              (PDWORD)&t);
 }
 
-void handleKey(KEY_EVENT_RECORD ir, item *k)
-{}
+// void handleKey(KEY_EVENT_RECORD ir, item *k)
+// {}
 
 invMenu::invMenu()
 {
@@ -391,7 +376,7 @@ int invMenu::paintView()
   short *colCnt=columnWidth;
   inventory_item *rcd=top;
   short tx=x,ty=y;
-  std::cout << nrec << '\n';
+
   SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),viewColor);
   setclr(viewColor,width, x,y);
   if (snCount)
@@ -514,7 +499,6 @@ int invMenu::selectView()
 item::~item()
 {
   delete[] szMenuItem;
-  pf=NULL;
   if (next)
     {
       delete next;
@@ -525,24 +509,15 @@ item::~item()
     }
 }
 
-item::item(char p[], void(*func)(), consoleMenu *tt, int len)
+item::item(char p[], consoleMenu *tt, int len)
 {
   length     = len;
   midPos     = length % 2 ? length / 2 : (length + 1) / 2;
   next       = NULL;
   szMenuItem = new char[length + 1];
   strcpy(szMenuItem, p);
+  mm = tt;
 
-  if (tt != NULL)
-    {
-      mm = tt;
-      pf = NULL;
-    }
-  else
-    {
-      pf = func;
-      mm = NULL;
-    }
 }
 
 
@@ -555,48 +530,31 @@ int  consoleMenu::selectOption()
   INPUT_RECORD ir[512];
   DWORD numOfEntries;
 
-
   //    while(1)
   //    {
-  GetNumberOfConsoleInputEvents(rHwnd, &numOfEntries);
+  // GetNumberOfConsoleInputEvents(rHwnd, &numOfEntries);
 
-  if (!numOfEntries && menuItemVisual & ALIGN_LINE)
-    {
-      HANDLE wHwnd = GetStdHandle(STD_INPUT_HANDLE);
-      ir[0].EventType = MENU_EVENT;
-      WriteConsoleInput(wHwnd, &ir[0], 1, &numOfEntries);
-    }
+  // if (!numOfEntries && menuItemVisual & ALIGN_LINE)
+  //   {
+  //     HANDLE wHwnd = GetStdHandle(STD_INPUT_HANDLE);
+  //     ir[0].EventType = MENU_EVENT;
+  //     WriteConsoleInput(wHwnd, &ir[0], 1, &numOfEntries);
+  //   }
   ReadConsoleInput(rHwnd, ir, 512, &numOfEntries);
 
   for (register unsigned int i = 0; i < numOfEntries; i++)
     {
-      //            int kk=0;
-      //            if(menuItemVisual&ALIGN_LINE)kk=1;
-      //            if(kk)
-      //            {
-      //                if(ir[i].EventType==MOUSE_EVENT)
-      //                {
-      //                    if(ir[i].Event.MouseEvent.dwMousePosition.Y!=0)return
-      // NOT_ON_MENU;
-      //                }
-      //                else
-      //                {
-      //                    return NOT_ON_MENU;
-      //                }
-      //            }
-
       switch (ir[i].EventType)
         {
         case MOUSE_EVENT:
 
           if (MouseOrKey & USE_MOUSE)
             {
-              int tt = handleMouse(ir[i].Event.MouseEvent, start, x, y, menuHeight, menuWidth, &opt, menuItemVisual, mnBG,NULL);
+              int tt = handleMouse(ir[i].Event.MouseEvent, start, x, y, menuHeight,
+                                  menuWidth, &opt, menuItemVisual, mnBG,NULL);
 
               if (tt == MOUSE_LEFT_PRESS)
                 {
-                  item *ptr = start;
-
                   if (opt == -1)
                     {
                       if (isChild && (isChildOf->menuItemVisual) & ALIGN_LINE)
@@ -608,9 +566,9 @@ int  consoleMenu::selectOption()
 
                           // clearScreen(0,1);       // change these 3  to store the input
                           // buffer
-                          isChildOf->paintBackground(); // and then restore it ,it will
+                          // isChildOf->paintBackground(); // and then restore it ,it will
                           // allow to work
-                          isChildOf->paintMenu();       // with pictures as backgrounds and
+                          // isChildOf->paintMenu();       // with pictures as backgrounds and
                           // real time
                           // menu's
 
@@ -620,6 +578,8 @@ int  consoleMenu::selectOption()
                     }
 
                   // past here proper option has been selected
+                  item *ptr = start;
+                  int itNo=opt;
                   while (opt-- != 0) ptr = ptr->next;
 
                   // call assosciated function
@@ -641,20 +601,30 @@ int  consoleMenu::selectOption()
 
                       if (!(menuItemVisual & ALIGN_LINE)) temp->paintBackground();
 
-                      short err = temp->paintMenu();
+                      int err = temp->paintMenu();
 
                       if (err != RET_SUCCESS) return err;
 
-                      err = temp->selectOption();
-
+                       do{
+                        err = temp->selectOption();
+                        if (err == RET_CLEAR) break;
+                        else if (err == RET_BACK) break;
+                      }while (err == NOT_ON_MENU);
+                      if (!isChild||err==RET_BACK||err==RET_CLEAR) {
+                        paintBackground();
+                        paintMenu();
+                      }
                       if (err == RET_CLEAR) break;
                       else if (err == RET_BACK) break;
-                      else if (err != RET_SUCCESS) return err;
+                      itNo=itNo*10+err;
+
+                      return itNo;
                     }
                   else
                     {
                       if (isChild)
                         {
+
                           if ((isChildOf->menuItemVisual) & ALIGN_LINE)
                             {
                               clearScreen(0, 1); //more like save buufer do function restore buffer
@@ -664,34 +634,37 @@ int  consoleMenu::selectOption()
                               if (ptr->next == NULL)
                                 {
                                   // clearScreen(0,0);
-                                  isChildOf->paintBackground();
-                                  isChildOf->paintMenu();
+                                  // isChildOf->paintBackground();
+                                  // isChildOf->paintMenu();
                                   return RET_BACK;
                                 }
                             }
                         }
-                      ptr->pf();
+                        if (!ptr->next) {
+                          quit();
+                        }
+                      // ptr->pf();
+                      return itNo;
                     }
-                  return RET_SUCCESS;
                 }
               break;
             }
 
-        case KEY_EVENT:
-
-          if (MouseOrKey & USE_KEY)
-            {
-              handleKey(ir[i].Event.KeyEvent, start);
-              break;
-            }
+        // case KEY_EVENT:
+        //
+        //   if (MouseOrKey & USE_KEY)
+        //     {
+        //       handleKey(ir[i].Event.KeyEvent, start);
+        //       break;
+        //     }
 
         default:
           break;
         }
 
-      //        }
-    }
-  return RET_SUCCESS;
+      }
+    //}
+  return NOT_ON_MENU;
 }
 
 void consoleMenu::setcolor(unsigned short m = cGRAY,
@@ -703,19 +676,11 @@ void consoleMenu::setcolor(unsigned short m = cGRAY,
   FillConsoleOutputAttribute(GetStdHandle(
                                STD_OUTPUT_HANDLE), m, t, cc,
                              (PDWORD)&t);
-  // gotoxyz(0, 0);
 }
 
 consoleMenu::consoleMenu(char *str)
 {
-  Opts = 0;
-
-  /** @param x,y coord ,menuBGch ,delay ,setBGf pbj , menuitemvisual ,
-   * mouseorkey, ischildof **/
-
-  // setOptions(0, 0,' ', 0, ENABLE_PLAIN, ALIGN_CENTER | SELECT_HIGHLIGHT,
-  // USE_MOUSE);
-
+  Opts             = 0;
   start            = NULL;
   cLargestMenuItem = 0;
   menuWidth        = 4;
@@ -889,12 +854,12 @@ int consoleMenu::Mset()
       if (!(isChildOf->menuItemVisual & ALIGN_LINE))
         {
           strcpy(p, "back");
-          newItem(p, bbk, NULL);
+          newItem(p, NULL);
         }
     }
   else
     {
-      newItem(p, quit, NULL);
+      newItem(p, NULL);
     }
 
   if (menuItemVisual & ALIGN_LINE)
@@ -910,11 +875,9 @@ int consoleMenu::Mset()
   return RET_SUCCESS;
 }
 
-int consoleMenu::newItem(char *p, void (*t)(), consoleMenu *mm)
+int consoleMenu::newItem(char *p, consoleMenu *mm)
 {
   if (!Opts) return OPT_NOT_SET;
-
-  if ((t == NULL) && (mm == NULL)) return RET_FAILURE;
 
   if (mm && !mm->Opts)  return OPT_NOT_SET;
 
@@ -927,7 +890,7 @@ int consoleMenu::newItem(char *p, void (*t)(), consoleMenu *mm)
 
   if (start == NULL)
     {
-      start = new item(p, t, mm, length);
+      start = new item(p, mm, length);
       ptr   = start;
 
       if (menuItemVisual & ALIGN_LINE)
@@ -946,7 +909,7 @@ int consoleMenu::newItem(char *p, void (*t)(), consoleMenu *mm)
 
       while (ptr->next != NULL) ptr = ptr->next;
 
-      ptr->next = new item(p, t, mm, length);
+      ptr->next = new item(p, mm, length);
 
       if (menuItemVisual & ALIGN_LINE) ptr->next->iy = 0;
       else if (menuItemVisual & SELECT_BOX) ptr->next->iy = ptr->iy + 2;
