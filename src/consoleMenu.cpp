@@ -4,12 +4,12 @@
  * @Email                : anodecode@gmail.com
  * @Filename             : consoleMenu.cpp
  * @Last modified by     : Tausif Ali
- * @Last modified time   : 28-Dec-2016
+ * @Last modified time   : 31-Dec-2016
  * @Copyright            : stop stealing code, homo :P
 **/
 
 #include "consoleMenu.h"
-//#include <iostream>
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
@@ -42,18 +42,22 @@ void clearScreen(short x, short y, unsigned long t)
 
 int handleMouse(MOUSE_EVENT_RECORD ir,
                 item              *top,
+                inventory_item    *stt,
                 short              x,
                 short              y,
                 int                h,
                 int                w,
                 int               *o,
                 int                mode,
-                unsigned int       mnBG,
-                inventory_item      *stt)
+                unsigned int       mnBG)
 {
   COORD cc;
   WORD flags = 0;
   static short py = -1, f = 0;
+
+  if (!top && !stt) {
+    return RET_FAILURE;
+  }
 
   int iy                ;
   if (top!=NULL)
@@ -99,15 +103,9 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
     }
   else
     {
-      //    if (mode & SELECT_BOX)
-      //    {
-      //        h-=3;
-      //        h*=2;
-      //        h+=3;
-      //    }
       if (mode & ALIGN_LINE)
         {
-          if (ir.dwMousePosition.Y == 0)
+          if (ir.dwMousePosition.Y == y)
             {
               item *ptr = top;
               short ttx = ptr->ix;
@@ -118,48 +116,51 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
               while (ir.dwMousePosition.X > xx)
                 {
                   ptr = ptr->next;
-                  *o += 1;
 
                   if (ptr == NULL) return MENU_EMPTY;
+                  *o += 1;
 
                   ttx = ptr->ix;
                   xx  = ttx + ptr->length;
                 }
 
+              if (ir.dwMousePosition.X == xx) {
+                  ttx=-1;
+                  xx=-1;
+                  *o=-1;
+              }
               if (py != ttx)
                 {
-                  cc= {0,0};
-                  FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG, 80,
+                  cc= {x,y};
+                  FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG, w,
                                              cc, &t);
 
                   py = -1;
                   *o = -1;
 
-                  if ((ir.dwMousePosition.X >= ttx) && (ir.dwMousePosition.X < xx))
-                    {
-                      if (mode & SELECT_HIGHLIGHT)
-                        flags = cbackDARKBLUE | cWHITE;
-                      else if (mode & SELECT_TEXT)
-                        flags = cWHITE | mnBG;
-                      cc= {ttx,0};
-                      FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), flags, ptr->length,cc, &t);
-                      py = ttx;
-                    }
+                if ((ir.dwMousePosition.X >= ttx) && (ir.dwMousePosition.X < xx))
+                  {
+                    if (mode & SELECT_HIGHLIGHT)
+                      flags = cbackDARKBLUE | cWHITE;
+                    else if (mode & SELECT_TEXT)
+                      flags = cWHITE | mnBG;
+                    cc= {ttx,y};
+                    FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), flags, ptr->length,cc, &t);
+                    py = ttx;
+                  }
                 }
             }
           else if (f)
             {
               f = 0;
-
-              //            if(py==0)
-              cc= {0,0};
-              FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG, 80, cc, &t);
+              cc= {x,y};
+              FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG, w, cc, &t);
 
               *o = -1;
               py = -1;
             }
         }
-      else if ((ir.dwMousePosition.Y > y + 2) && (ir.dwMousePosition.Y < y + h - 1) &&
+      else if ((ir.dwMousePosition.Y >= iy ) && (ir.dwMousePosition.Y < y + h - 1) &&
                (ir.dwMousePosition.X > x) && (ir.dwMousePosition.X < x + w - 1))
         {
           f = 1;
@@ -189,7 +190,7 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
           *o = -1;
 
 
-          if ((py > y + 2) && (py < y + h - 1))
+          if ((py >= iy) && (py < y + h - 1))
             {
               cc= {x,py};
               FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG, w - 1, cc, &t);
@@ -367,10 +368,8 @@ int invMenu::addEntry(char **str)
 
 int invMenu::paintView()
 {
-  if (!viewSet)
-    {
-      return OPT_NOT_SET;
-    }
+  if (!viewSet) return OPT_NOT_SET;
+
   COORD cc;
   DWORD t=0;
   short *colCnt=columnWidth;
@@ -384,7 +383,7 @@ int invMenu::paintView()
   gotoxyz(tx,ty);
   for (size_t i = 0; i < noOfColumns; i++)
     {
-      puts(columnNames[i]);
+      fputs(columnNames[i],stdout);
       gotoxyz(tx+=colCnt[i],ty);
     }
 
@@ -408,7 +407,7 @@ int invMenu::paintView()
       gotoxyz(tx,ty);
       for (size_t i = 0; i < noOfColumns; i++)
         {
-          puts(rcd->szRecord[i]);
+          fputs(rcd->szRecord[i],stdout);
           gotoxyz(tx+=colCnt[i],ty);
         }
       rcd=rcd->next;
@@ -417,7 +416,7 @@ int invMenu::paintView()
   ty=rcd->iy;
   setclr(viewColor,width, x,ty);
   gotoxyz(tx,ty);
-  puts(rcd->szRecord[0]);
+  fputs(rcd->szRecord[0],stdout);
 
   SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),cGRAY);
   return RET_SUCCESS;
@@ -466,33 +465,21 @@ int invMenu::selectView()
     }
   int optn      = -1;
   HANDLE rHwnd = GetStdHandle(STD_INPUT_HANDLE);
-  INPUT_RECORD ir[512];
+  INPUT_RECORD ir[1];
   DWORD numOfEntries;
 
+  ReadConsoleInput(rHwnd, ir, 1, &numOfEntries);
 
-  GetNumberOfConsoleInputEvents(rHwnd, &numOfEntries);
-
-  if (!numOfEntries)
-    {
-      HANDLE wHwnd = GetStdHandle(STD_INPUT_HANDLE);
-      ir[0].EventType = MENU_EVENT;
-      WriteConsoleInput(wHwnd, &ir[0], 1, &numOfEntries);
-    }
-  ReadConsoleInput(rHwnd, ir, 512, &numOfEntries);
-
-  for (register unsigned int i = 0; i < numOfEntries; i++)
-    {
-      switch (ir[i].EventType)
+      switch (ir[0].EventType)
         {
         case MOUSE_EVENT:
-          int tt = handleMouse(ir[i].Event.MouseEvent,NULL,x,y,height,width,& optn,0,viewColor,top);
+          int tt = handleMouse(ir[0].Event.MouseEvent,NULL,top,x,y,height,width,& optn,0,viewColor);
           if(tt==MOUSE_LEFT_PRESS)
             {
               if (optn!=-1)
                 return optn;
             }
         }
-    }
   return NOT_ON_MENU;
 }
 
@@ -517,9 +504,7 @@ item::item(char p[], consoleMenu *tt, int len)
   szMenuItem = new char[length + 1];
   strcpy(szMenuItem, p);
   mm = tt;
-
 }
-
 
 int  consoleMenu::selectOption()
 {
@@ -527,31 +512,20 @@ int  consoleMenu::selectOption()
 
   int opt      = -1;
   HANDLE rHwnd = GetStdHandle(STD_INPUT_HANDLE);
-  INPUT_RECORD ir[512];
+  INPUT_RECORD ir[1];
   DWORD numOfEntries;
 
-  //    while(1)
-  //    {
-  // GetNumberOfConsoleInputEvents(rHwnd, &numOfEntries);
+  ReadConsoleInput(rHwnd, ir, 1, &numOfEntries);
 
-  // if (!numOfEntries && menuItemVisual & ALIGN_LINE)
-  //   {
-  //     HANDLE wHwnd = GetStdHandle(STD_INPUT_HANDLE);
-  //     ir[0].EventType = MENU_EVENT;
-  //     WriteConsoleInput(wHwnd, &ir[0], 1, &numOfEntries);
-  //   }
-  ReadConsoleInput(rHwnd, ir, 512, &numOfEntries);
-
-  for (register unsigned int i = 0; i < numOfEntries; i++)
-    {
-      switch (ir[i].EventType)
+      switch (ir[0].EventType)
         {
         case MOUSE_EVENT:
 
           if (MouseOrKey & USE_MOUSE)
             {
-              int tt = handleMouse(ir[i].Event.MouseEvent, start, x, y, menuHeight,
-                                  menuWidth, &opt, menuItemVisual, mnBG,NULL);
+              int tt = handleMouse(ir[0].Event.MouseEvent, start,NULL, x, y,
+                 (start->iy-y)+(menuItemVisual&SELECT_BOX?ci*2:ci+1),
+                                  menuWidth, &opt, menuItemVisual, mnBG);
 
               if (tt == MOUSE_LEFT_PRESS)
                 {
@@ -559,19 +533,6 @@ int  consoleMenu::selectOption()
                     {
                       if (isChild && (isChildOf->menuItemVisual) & ALIGN_LINE)
                         {
-                          // this function is to remove the secondary menu created
-                          // after opening from line menu
-                          // instead of clearing screen ,have the stored output buffer
-                          // restored
-
-                          // clearScreen(0,1);       // change these 3  to store the input
-                          // buffer
-                          // isChildOf->paintBackground(); // and then restore it ,it will
-                          // allow to work
-                          // isChildOf->paintMenu();       // with pictures as backgrounds and
-                          // real time
-                          // menu's
-
                           return RET_CLEAR;
                         }
                       break;
@@ -616,7 +577,7 @@ int  consoleMenu::selectOption()
                       }
                       if (err == RET_CLEAR) break;
                       else if (err == RET_BACK) break;
-                      itNo=itNo*10+err;
+                      itNo=err*10+itNo;
 
                       return itNo;
                     }
@@ -627,23 +588,16 @@ int  consoleMenu::selectOption()
 
                           if ((isChildOf->menuItemVisual) & ALIGN_LINE)
                             {
-                              clearScreen(0, 1); //more like save buufer do function restore buffer
+                              // clearScreen(0, 1); //more like save buufer do function restore buffer
                             }
-                          else
+                          else  if (ptr->next == NULL)
                             {
-                              if (ptr->next == NULL)
-                                {
-                                  // clearScreen(0,0);
-                                  // isChildOf->paintBackground();
-                                  // isChildOf->paintMenu();
-                                  return RET_BACK;
-                                }
+                              return RET_BACK;
                             }
                         }
-                        if (!ptr->next) {
+                        else  if (!ptr->next) {
                           quit();
                         }
-                      // ptr->pf();
                       return itNo;
                     }
                 }
@@ -661,9 +615,6 @@ int  consoleMenu::selectOption()
         default:
           break;
         }
-
-      }
-    //}
   return NOT_ON_MENU;
 }
 
@@ -680,20 +631,31 @@ void consoleMenu::setcolor(unsigned short m = cGRAY,
 
 consoleMenu::consoleMenu(char *str)
 {
+  colr             = cGRAY;
+  mnBG             = cBLUE;
+
   Opts             = 0;
-  start            = NULL;
+  Menuset          = 0;
+  isChild          = 0;
+  HWSet            = 0;
+  x                = 0;
+  y                = 0;
+
+  szName           = new char[strlen(str) + 1];
+  strcpy(szName, str);
+  menuBGch         = ' ';
+
+  ci               = 0;
+  pbj              = 1;
+  MouseOrKey       = 1;
+  displayDelay     = 0;
+  menuItemVisual   = 0;
   cLargestMenuItem = 0;
   menuWidth        = 4;
   menuHeight       = 4;
-  colr             = cGRAY;
-  mnBG             = cBLUE;
-  szName           = new char[strlen(str) + 1];
-  strcpy(szName, str);
-  isChild=0;
-  Menuset   = 0;
-  ci        = 0;
-  isChildOf = NULL;
-  menuBGch  = ' ';
+
+  start            = NULL;
+  isChildOf        = NULL;
 }
 
 int consoleMenu::RegisterOptions()
@@ -709,10 +671,24 @@ int consoleMenu::RegisterOptions()
     }
 }
 
+int consoleMenu::setHW(int hgt,int wid)
+{
+  if(HWSet)
+    return OPT_SET_PREV;
+
+  menuHeight = hgt;
+  menuWidth = wid;
+
+  HWSet=1;
+  return RET_SUCCESS;
+}
+
 /** @param x,y coord ,menuBGch ,delay ,setBGf pbj , menuitemvisual , mouseorkey,
  * ischildof **/
 short consoleMenu::setOptions(short tx,
                               short ty,
+                              int   hgt,
+                              int   wid,
                               char  gh,
                               int   ddelay,
                               int   backFlag,
@@ -722,10 +698,23 @@ short consoleMenu::setOptions(short tx,
   if (Opts)
     return OPT_SET_PREV;
 
-  // if (consoleMenu::has_parent) return HAS_PARENT;
+  if(hgt > 25 || hgt < 4) hgt = 4;
+  if(wid > 80 || wid < 4) wid = 4;
 
-  if ( tx < 0 ) tx=0;
-  if ( ty < 0 ) ty=0;
+  if ( tx < 0 ) tx = 0;
+  if ( ty < 0 ) ty = 0;
+
+  if (tx+wid>80) wid=80-tx;
+  if (ty+hgt>25) hgt=25-ty;
+
+  if (toMenuVisual&ALIGN_LINE) {
+    setHW(1,wid);
+  }
+  else
+  {
+    if (toMenuVisual&SELECT_BOX) hgt-=hgt&1?1:0;
+    if(setHW(hgt,wid) != RET_SUCCESS) return OPT_SET_PREV;
+  }
 
   setChildFlag(IS_PARENT);
   setMenuItemVisual(toMenuVisual);
@@ -741,16 +730,8 @@ short consoleMenu::setOptions(short tx,
 
 void consoleMenu::setCoord(short tx, short ty)
 {
-  if (menuItemVisual & ALIGN_LINE)
-    {
-      x = 0;
-      y = 0;
-    }
-  else
-    {
       x = tx;
       y = ty;
-    }
 }
 
 void consoleMenu::setDelay(int d)
@@ -816,43 +797,85 @@ int consoleMenu::Mset()
 
   if (menuItemVisual & ALIGN_LINE)
     {
+      if (ci > 8) return LINE_MENU_OVERFLOW;
+    }
+  else
+    {
+      if(x<0||y<0)return MENU_OVERFLOW;
+    }
+  if (!(isChild && isChildOf->menuItemVisual&ALIGN_LINE))
+    if (((menuWidth + x) > 80) || ((menuHeight + y) > 25)) return MENU_OVERFLOW;
+
+  if (menuItemVisual & ALIGN_LINE)
+    {
       menuItemVisual &= ~ALIGN_CENTER;
       menuItemVisual &= ~ALIGN_LEFT;
       menuItemVisual &= ~SELECT_BOX;
       menuItemVisual &= ~ENABLE_BORDER;
 
-      if (menuItemVisual & SELECT_HIGHLIGHT) menuItemVisual &= ~SELECT_TEXT;
-      else menuItemVisual |= SELECT_TEXT;
+      if (menuItemVisual & SELECT_TEXT) menuItemVisual &= ~SELECT_HIGHLIGHT;
+      else menuItemVisual |= SELECT_HIGHLIGHT;
     }
   else
     {
-      if (menuItemVisual & ALIGN_CENTER) menuItemVisual &= ~ALIGN_LEFT;
-      else menuItemVisual |= ALIGN_LEFT;
+      if (menuItemVisual & ALIGN_LEFT) menuItemVisual &= ~ALIGN_CENTER;
+      else menuItemVisual |= ALIGN_CENTER;
 
 
-      if (menuItemVisual & SELECT_HIGHLIGHT)
+      if (menuItemVisual & SELECT_BOX)
         {
           menuItemVisual &= ~SELECT_TEXT;
-          menuItemVisual &= ~SELECT_BOX;
+          menuItemVisual &= ~SELECT_HIGHLIGHT;
         }
       else if (menuItemVisual & SELECT_TEXT)
         {
-          menuItemVisual &= ~SELECT_BOX;
+          menuItemVisual &= ~SELECT_HIGHLIGHT;
         }
       else
         {
-          menuItemVisual |= SELECT_BOX;
+          menuItemVisual |= SELECT_HIGHLIGHT;
         }
     }
 
   char p[5] = "exit";
 
-  Menuset = 1;
+
 
   if (isChild)
     {
-      if (!(isChildOf->menuItemVisual & ALIGN_LINE))
+      if (isChildOf->menuItemVisual & ALIGN_LINE)
         {
+          item *ptr=start;
+          menuHeight = ci + 2;
+
+          if (y+menuHeight>25) {
+            y = y - menuHeight -1;
+          }
+
+          if (!ptr) return MENU_EMPTY;
+          int i=1;
+          while (ptr!=NULL)
+            {
+              ptr->iy = y+i;
+              ptr=ptr->next;
+              i++;
+            }
+
+          // if ((y + menuHeight) > 25)
+          //   {
+          //     int   df = 25 - menuHeight, ff;
+          //     item *ptr = start;
+          //     ff = y - df;
+          //     y  = df;
+          //
+          //     while (ptr != NULL)
+          //       {
+          //         ptr->iy -= ff;
+          //         ptr      = ptr->next;
+          //       }
+          //   }
+        }
+        else{
           strcpy(p, "back");
           newItem(p, NULL);
         }
@@ -860,17 +883,11 @@ int consoleMenu::Mset()
   else
     {
       newItem(p, NULL);
+      // if(menuItemVisual&ALIGN_LINE)
+      //   menuWidth-=1;
     }
 
-  if (menuItemVisual & ALIGN_LINE)
-    {
-      if (ci > 10) return LINE_MENU_OVERFLOW;
-    }
-  else
-    {
-      if (((menuWidth + x) > 80) || ((menuHeight + y) > 25)) return MENU_OVERFLOW;
-    }
-
+  Menuset = 1;
   remove_scroll();
   return RET_SUCCESS;
 }
@@ -879,7 +896,11 @@ int consoleMenu::newItem(char *p, consoleMenu *mm)
 {
   if (!Opts) return OPT_NOT_SET;
 
+  if (!HWSet) return OPT_NOT_SET;
+
   if (mm && !mm->Opts)  return OPT_NOT_SET;
+  if (mm == this) return RET_FAILURE;
+  if (mm && mm->isChildOf) return RET_FAILURE;
 
   item *ptr;
 
@@ -895,13 +916,13 @@ int consoleMenu::newItem(char *p, consoleMenu *mm)
 
       if (menuItemVisual & ALIGN_LINE)
         {
-          ptr->iy = ptr->ix = 0;
+          ptr->iy = y;
         }
       else
         {
-          ptr->iy = y + 3;
-          ptr->ix = x;
+          ptr->iy = y + 3;//menuheight
         }
+        ptr->ix = x;
     }
   else
     {
@@ -911,7 +932,7 @@ int consoleMenu::newItem(char *p, consoleMenu *mm)
 
       ptr->next = new item(p, mm, length);
 
-      if (menuItemVisual & ALIGN_LINE) ptr->next->iy = 0;
+      if (menuItemVisual & ALIGN_LINE) ptr->next->iy = y;
       else if (menuItemVisual & SELECT_BOX) ptr->next->iy = ptr->iy + 2;
       else ptr->next->iy = ptr->iy + 1;
 
@@ -934,13 +955,38 @@ int consoleMenu::newItem(char *p, consoleMenu *mm)
       if (menuItemVisual & ALIGN_LINE)
         {
           mm->setMenuItemVisual(ALIGN_LEFT | SELECT_HIGHLIGHT);
-          mm->setCoord(ptr->ix, 1);
+          mm->setCoord(ptr->ix, ptr->iy+1);
         }
       else
         {
           mm->setMenuItemVisual(menuItemVisual);
           mm->setCoord(x, y);
         }
+      if (!(menuItemVisual & ALIGN_LINE))
+      {
+        if (mm->start) {
+          if (mm->menuHeight < menuHeight) {
+            mm->menuHeight = menuHeight;
+          }
+          if (mm->menuWidth < menuWidth) {
+            mm->menuWidth = menuWidth;
+          }
+        }
+        else{
+          if(mm->HWSet)
+          {
+            mm->menuWidth = menuWidth;
+            mm->menuHeight = menuHeight;
+          }
+          else
+            mm->setHW(menuHeight,menuWidth);
+        }
+      }else{
+        if(!mm->start)
+        {
+          mm->setHW(4,4);
+        }
+      }
     }
 
   ci++;
@@ -951,9 +997,12 @@ int consoleMenu::newItem(char *p, consoleMenu *mm)
     }
   else
     {
-      if (menuItemVisual & SELECT_BOX) menuHeight += 2;
-      else menuHeight++;
+        if (menuItemVisual & SELECT_BOX)
+          {if (menuHeight-4<ci*2)
+            menuHeight += 2;}
+        else if(menuHeight-4<ci)menuHeight++;
 
+    if (!(isChild && isChildOf->menuItemVisual&ALIGN_LINE))
       if ((y + menuHeight) > 25)
         {
           int   df = 25 - menuHeight, ff;
@@ -971,30 +1020,36 @@ int consoleMenu::newItem(char *p, consoleMenu *mm)
 
   if (menuItemVisual & ALIGN_LINE)
     {
-      menuWidth = 80;
+      int t = ptr->ix-start->ix+length+1;
+      if( t > menuWidth)
+        menuWidth = t-1;
+      // menuWidth += ptr->length + 1;
     }
   else if (cLargestMenuItem < ptr->length)
     {
       cLargestMenuItem = ptr->length;
-      menuWidth        = cLargestMenuItem + 4;
+      int aS = menuItemVisual&ALIGN_CENTER?4:2;
+      if (cLargestMenuItem + aS > menuWidth)
+      {
+        menuWidth        = cLargestMenuItem + aS;
+      }
 
       int diff = 0;
       diff = x + menuWidth;
 
       if (diff > 80)
-        {
-          diff = 80 - menuWidth;
-          x    = diff;
-          ptr  = start;
+      {
+        diff = 80 - menuWidth;
+        x    = diff;
+        ptr  = start;
 
-          while (ptr != NULL)
-            {
-              ptr->ix = diff;
-              ptr     = ptr->next;
-            }
-        }
+        while (ptr != NULL)
+          {
+            ptr->ix = diff;
+            ptr     = ptr->next;
+          }
+      }
     }
-
   return RET_SUCCESS;
 }
 
@@ -1002,10 +1057,9 @@ int consoleMenu::paintBackground()
 {
   if (!Menuset) return MENU_NOT_SET;
 
-  char ch = menuBGch;
-
   if (pbj & ENABLE_PLAIN)
     {
+      char ch = menuBGch;
       HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
       DWORD  t = 80 * 25;
       COORD  d = { 0, 0 };
@@ -1042,19 +1096,18 @@ int consoleMenu::paintMenu()
     {
       tx = ptr->ix;
       ty = ptr->iy;
-      setcolor(mnBG, 80, tx, ty);
-      cc= {tx,ty};
-      FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE), ' ', 80, cc,&t);
+      cc = {tx,ty};
+
+      setcolor(mnBG, menuWidth, tx, ty);
+      FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE), ' ', menuWidth, cc,&t);
       SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG);
-      char q[30] = "";
+      // char q[30] = "";
 
       while (ptr != NULL)
         {
           tx = ptr->ix;
           gotoxyz(tx, ty);
-          strcpy(q, ptr->szMenuItem);
-          strcat(q, " ");
-          puts(q);
+          fputs(ptr->szMenuItem,stdout);
           ptr = ptr->next;
         }
 
@@ -1065,62 +1118,35 @@ int consoleMenu::paintMenu()
   else if (menuItemVisual & (ALIGN_CENTER | ALIGN_LEFT))
     {
       int menuCenter = menuWidth / 2;
-      setcolor(mnBG, menuWidth, tx, ty);
 
-      cc= {tx,ty};
-      FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE), ' ', menuWidth,
-                                 cc,&t);
-      ty++;
-      setcolor(mnBG, menuWidth, tx, ty);
-      cc= {tx,ty};
-      FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE), ' ', menuWidth,
-                                 cc, &t);
+      for (int i = ty; i < ty+menuHeight; i++)
+      {
+        setcolor(mnBG,menuWidth,tx,i);
+        cc= {tx,(short)i};
+          FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE), ' ', menuWidth,cc,&t);
+      }
 
       SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG);
-      gotoxyz(tx, ty);
-      char q[20] = " ";
-      strcat(q, szName);
-      puts(q);
-      SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), cGRAY);
-      ty++;
-      setcolor(mnBG, menuWidth, tx, ty);
-      cc= {tx,ty};
-      FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE), ' ', menuWidth,
-                                 cc, &t);
-      ty++;
-      setcolor(mnBG, menuWidth, tx, ty);
-      cc= {tx,ty};
-      FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE), ' ', menuWidth,
-                                 cc, &t);
+      if (!(isChild && isChildOf->menuItemVisual&ALIGN_LINE))
+      {
+        gotoxyz(tx+1,ty+1);
+        fputs(szName,stdout);
+      }
 
       int itemStart;
-      SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG);
 
-      while (ptr != NULL)
-        {
-          gotoxyz(tx, ty);
-          Sleep(displayDelay);
+      while(ptr!=NULL)
+      {
+        itemStart = menuItemVisual & ALIGN_CENTER ? (menuCenter - ptr->midPos) +
+                        tx : tx + 1;
+        ty=ptr->iy;
 
-          itemStart = menuItemVisual & ALIGN_CENTER ? (menuCenter - ptr->midPos) +
-                      tx : tx + 1;
-          gotoxyz(itemStart, ty);
-          puts(ptr->szMenuItem);
-          ty++;
+        Sleep(displayDelay);
+        gotoxyz(itemStart,ty);
+        fputs(ptr->szMenuItem,stdout);
+        ptr=ptr->next;
+      }
 
-          //            gotoxyz(tx,ty);
-          setcolor(mnBG, menuWidth, tx, ty);
-          cc= {tx,ty};
-          FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE), ' ', menuWidth,cc, &t);
-          if (menuItemVisual & SELECT_BOX)
-            {
-              ty++;
-              setcolor(mnBG, menuWidth, tx, ty);
-              cc= {tx,ty};
-              FillConsoleOutputCharacter(GetStdHandle(
-                                           STD_OUTPUT_HANDLE), ' ', menuWidth, cc, &t);
-            }
-          ptr = ptr->next;
-        }
       SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), cGRAY);
 
       if (menuItemVisual & ENABLE_BORDER)

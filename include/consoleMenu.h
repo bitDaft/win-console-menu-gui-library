@@ -5,7 +5,7 @@
  * @Email                : anodecode@gmail.com
  * @Filename             : consoleMenu.h
  * @Last modified by     : Tausif Ali
- * @Last modified time   : 27-Dec-2016
+ * @Last modified time   : 31-Dec-2016
  * @Copyright            : stop stealing code, homo :P
  **/
 
@@ -72,7 +72,7 @@
 #define ALIGN_LINE          4
 #define SELECT_HIGHLIGHT    8
 #define SELECT_TEXT         16
-#define SELECT_BOX          32 //printing box around option pending
+#define SELECT_BOX          32    //TODO printing box around option pending
 
 #define ENABLE_BORDER       128
 
@@ -131,8 +131,6 @@ private:
   void setColName(const char **);
   void setColWidth(const short *);
   void setNoOfColumns(const unsigned short);
-
-
 };
 
 struct inventory_item
@@ -146,8 +144,6 @@ struct inventory_item
 
 struct item
 {
-  //  void        (*pf)();
-
    int         midPos;
    int         length;
    short       ix, iy;
@@ -156,7 +152,6 @@ struct item
    item        *next;
    consoleMenu *mm;
 
-  //  item(char*, void(*t)(), consoleMenu*, int);
    item(char*, consoleMenu*, int);
    ~item();
 };
@@ -174,15 +169,16 @@ public:
 
   //options functions
   /** @param x,y coord ,menuBGch ,delay ,setBGf pbj , menuitemvisual , mouseorkey, ischildof **/
-  short setOptions(short, short, char, int, int, int, int);
+  short setOptions(short, short,int ,int, char, int, int, int, int);
+  int setHW(int,int);
   void setOutcolor(unsigned short);
   void setmnBG(unsigned short);
 
   int RegisterOptions();
-  int Mset();
-
   // int newItem(char *, void (*t)(), consoleMenu*);
   int newItem(char *, consoleMenu*);
+
+  int Mset();
 
   int paintBackground();
   int paintMenu();
@@ -195,10 +191,10 @@ private:
   // static short has_parent;
   unsigned short colr, mnBG; //outside color and menu color
 
-
-  bool Opts;                  //checks whether the options of a menu has been set
+  bool Opts;                 //checks whether the options of a menu has been set
   bool Menuset;
   bool isChild;              //check whether it is a child
+  bool HWSet;                //check whether height width set
   short x, y;                //coordinates of menu
 
   char *szName;              // name of menu
