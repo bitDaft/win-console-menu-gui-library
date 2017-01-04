@@ -1,13 +1,13 @@
 
 /**
- * @Author               : Tausif Ali <meow-man>
- * @Date                 : 18-Dec-2016
+ * @Author               : Tausif Ali
+ * @Date                 : 30-Dec-2016
  * @Email                : anodecode@gmail.com
  * @Filename             : consoleMenu.h
  * @Last modified by     : Tausif Ali
- * @Last modified time   : 31-Dec-2016
- * @Copyright            : stop stealing code, homo :P
- **/
+ * @Last modified time   : 04-Jan-2017
+ * @Copyright            : feel free to use, adding reference appreciated :)
+**/
 
 #ifndef CONSOLEMENU_H
 #define CONSOLEMENU_H
@@ -95,7 +95,7 @@
 class consoleMenu;
 struct item;
 class invMenu;
-class inventory_item;
+struct inventory_item;
 
 class invMenu
 {
@@ -104,7 +104,7 @@ public:
   invMenu();
   ~invMenu();
 //param column names , column width , no of column,x,y,view color,serial number bool.
-  int setViewOption( char **,  short *, unsigned short,short,short,unsigned short,bool);
+  int setViewOption( char **,  short *, unsigned short,int,short,short,unsigned short,bool);
   int RegView();
 
   int addEntry(char **);
@@ -128,16 +128,20 @@ private:
 
   inventory_item *top;
 
-  void setColName(const char **);
-  void setColWidth(const short *);
-  void setNoOfColumns(const unsigned short);
+  int setColName( char **);
+  int setColWidth( short *);
+  void setNoOfColumns( unsigned short);
 };
 
 struct inventory_item
 {
+  unsigned short col;
   char **szRecord;
   short ix,iy;
   inventory_item *next;
+
+  inventory_item();
+  ~inventory_item();
 };
 
 //struct holding a menu item i guess

@@ -1,19 +1,17 @@
+
 /**
- * @Author               : Tausif Ali <meow-man>
- * @Date                 : 19-Dec-2016
+ * @Author               : Tausif Ali
+ * @Date                 : 04-Jan-2017
  * @Email                : anodecode@gmail.com
  * @Filename             : consoleMenu.cpp
  * @Last modified by     : Tausif Ali
- * @Last modified time   : 31-Dec-2016
- * @Copyright            : stop stealing code, homo :P
+ * @Last modified time   : 04-Jan-2017
+ * @Copyright            : feel free to use, adding reference appreciated :)
 **/
 
 #include "consoleMenu.h"
-#include <iostream>
 #include <stdio.h>
-#include <stdlib.h>
 #include <windows.h>
-#include <assert.h>
 
 void quit()
 {
@@ -69,25 +67,29 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
   if(!top)
     {
       cc = {x,py};
-      if ((ir.dwMousePosition.Y > y + 1) && (ir.dwMousePosition.Y <= y + h)&&
+      if ((ir.dwMousePosition.Y > y + 1) && (ir.dwMousePosition.Y <= y + h - 1)&&
           (ir.dwMousePosition.X >= x) && (ir.dwMousePosition.X < x + w ))
         {
           f = 1;
 
-          *o = ir.dwMousePosition.Y - iy;
+          *o = ir.dwMousePosition.Y - iy + 1;
+          if (ir.dwMousePosition.Y > y + 1 + mode && ir.dwMousePosition.Y < y + h - 1) {
+            *o = -1;
+          }
+          else if(ir.dwMousePosition.Y== y + h - 1) *o = 0;
 
           if (py != ir.dwMousePosition.Y)
             {
-
               FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG, w, cc, &t);
               py = ir.dwMousePosition.Y;
               cc= {x,py};
             }
 
-          flags = cbackDARKBLUE | cWHITE;
-
-          FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), flags, w, cc,&t);
-
+          if(*o != -1)
+          {
+            flags = cbackDARKBLUE | cWHITE;
+            FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), flags, w, cc,&t);
+          }
         }
       else if (f)
         {
@@ -155,7 +157,6 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
               f = 0;
               cc= {x,y};
               FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG, w, cc, &t);
-
               *o = -1;
               py = -1;
             }
@@ -189,7 +190,6 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
           f  = 0;
           *o = -1;
 
-
           if ((py >= iy) && (py < y + h - 1))
             {
               cc= {x,py};
@@ -199,8 +199,6 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
         }
     }
 
-  //    if (ir.dwEventFlags == MOUSE_MOVED) gotoxyz(ir.dwMousePosition.X,
-  //                ir.dwMousePosition.Y);
   if (!wasPressed && (ir.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED))
     {
       wasPressed = 1;
@@ -226,35 +224,55 @@ void setclr(unsigned short m = cGRAY,
 
 // void handleKey(KEY_EVENT_RECORD ir, item *k)
 // {}
+inventory_item::inventory_item()
+{
+  col = ix = iy = 0;
+  szRecord  = NULL;
+  next = NULL;
+}
+
+inventory_item::~inventory_item()
+{
+  if (szRecord) {
+    for (size_t i = 0; i < col; i++)
+      delete [] szRecord[i];
+    delete [] szRecord;
+  }
+  col = ix = iy = 0;
+  if (next)
+    delete next;
+}
 
 invMenu::invMenu()
 {
-  snCount=1;
-  x=y=0;
-  width=0;
-  height=0;
-  columnNames=NULL;
-  columnWidth=NULL;
-  noOfColumns=0;
-  top=NULL;
-  optSet=0;
-  nrec=0;
-  viewSet=0;
+  snCount = 1;
+  x = y = 0;
+  width = 0;
+  height = 2;
+  columnNames = NULL;
+  columnWidth = NULL;
+  noOfColumns = 0 ;
+  top = NULL;
+  optSet = 0;
+  nrec = 0;
+  viewSet = 0;
 }
 
 invMenu::~invMenu()
 {
-  width=0;
-  height=0;
-  int i=0;
-  for (i = 0; i < noOfColumns; i++)
-    {
-      delete [] columnNames[i];
-    }
-  delete [] columnNames;
-  delete [] columnWidth;
-  noOfColumns=0;
-  delete top;
+  width = 0;
+  height = 0;
+  if(columnNames)
+  {
+    for (size_t i = 0; i < noOfColumns; i++)
+        delete [] columnNames[i];
+    delete [] columnNames;
+  }
+  if(columnWidth)
+    delete [] columnWidth;
+  noOfColumns = 0;
+  if(top)
+    delete top;
 }
 
 int invMenu::RegView()
@@ -265,12 +283,12 @@ int invMenu::RegView()
     }
   else
     {
-      optSet=1;
+      optSet = 1;
       return RET_SUCCESS;
     }
 }
 
-int invMenu::setViewOption( char **colNames, short *colW, unsigned short count,
+int invMenu::setViewOption( char **colNames, short *colW, unsigned short count,int hh,
                             short tx,short ty,unsigned short clr,bool slCol)
 {
   if(count <= 0)
@@ -278,52 +296,76 @@ int invMenu::setViewOption( char **colNames, short *colW, unsigned short count,
   if (optSet)
     return OPT_SET_PREV;
 
-  if(tx<0) tx=0;
-  if (ty<0) ty=0;
+  int error = 0;
 
+  if(tx < 0) tx = 0;
+  if (ty < 0) ty = 0;
 
-  viewColor=clr;
-  snCount=slCol;
+  viewColor = clr;
+  snCount = slCol;
 
-  x=tx;
-  y=ty;
+  x = tx;
+  y = ty;
 
-  setNoOfColumns((const unsigned short)count);
-  setColWidth((const short *)colW);
-  setColName((const char **)colNames);
+  if (y + hh > 25 ) {
+    return RET_FAILURE;
+  }
+  if (hh < 2) {
+    hh = 2;
+  }
+  height = hh;
+
+  setNoOfColumns(count);
+  if((error=setColWidth(colW)) != RET_SUCCESS)
+    return RET_FAILURE;
+  if((error=setColName(colNames)) != RET_SUCCESS)
+    return RET_FAILURE;
+
   return RET_SUCCESS;
 }
 
-void invMenu::setColName(const char **cn)
+int invMenu::setColName(char **cn)
 {
-  int i=0;
-  columnNames=new char*[noOfColumns];
+  int i = 0,k;
+  columnNames = new char*[noOfColumns];
 
   while(i < noOfColumns)
     {
-      columnNames[i]=new char[strlen(cn[i])+1];
-      strcpy(columnNames[i],cn[i]);
+      k = strlen(cn[i]);
+      if(k > columnWidth[i]) k = columnWidth[i];
+      columnNames[i] = new char[k+1];
+      strncpy(columnNames[i],cn[i],k);
+      columnNames[i][k]='\0';
       i++;
     }
-  height=1;
+
+  return RET_SUCCESS;
 }
-void invMenu::setColWidth(const short *cw)
+
+int invMenu::setColWidth(short *cw)
 {
   if (snCount)
-    width=2;
+    width = 3;
+  else
+    width = 0;
 
-  int i=0;
-  columnWidth=new short[noOfColumns];
+  int i = 0;
+  columnWidth = new short[noOfColumns];
+
   while(i < noOfColumns)
     {
-      width+=columnWidth[i]=cw[i];
+      width += columnWidth[i] = cw[i];
       i++;
     }
+    if (width > 80){
+      return RET_FAILURE;}
+
+    return RET_SUCCESS;
 }
 
-void invMenu::setNoOfColumns(const unsigned short cc)
+void invMenu::setNoOfColumns(unsigned short cc)
 {
-  noOfColumns=cc;
+  noOfColumns = cc;
 }
 
 int invMenu::addEntry(char **str)
@@ -331,36 +373,41 @@ int invMenu::addEntry(char **str)
   if (!optSet)
     return OPT_NOT_SET;
 
-  inventory_item *temp=new inventory_item;
+  inventory_item *temp = new inventory_item;
 
-  int i=0;
-  height++;
-  nrec++;
+  int i = 0,k;
 
-  temp->szRecord=new char*[noOfColumns];
-  while(i<noOfColumns)
+  temp->szRecord = new char*[noOfColumns];
+  while(i < noOfColumns)
     {
-      temp->szRecord[i]=new char[strlen(str[i])+1];
-      strncpy(temp->szRecord[i],str[i],columnWidth[i]);
+      k=strlen(str[i]);
+      if (k > columnWidth[i]) k = columnWidth[i];
+      temp->szRecord[i] = new char[k+1];
+      strncpy(temp->szRecord[i],str[i],k);
+      temp->szRecord[i][k]='\0';
       i++;
     }
   if (snCount)
-    temp->ix=x+2;
+    temp->ix = x + 3;
   else
-    temp->ix=x;
-  temp->iy=y+height;
-  temp->next=NULL;
+    temp->ix = x;
+  temp->iy = y + 2 + nrec;
+  temp->next = NULL;
 
-  if (top!=NULL)
+  nrec++;
+  if(temp->iy > y + height - 1)
+    height++;
+
+  if (top != NULL)
     {
-      inventory_item *ptr=top;
-      while(ptr->next!=NULL)
-        ptr=ptr->next;
-      ptr->next=temp;
+      inventory_item *ptr = top;
+      while(ptr->next != NULL)
+        ptr = ptr->next;
+      ptr->next = temp;
     }
   else
     {
-      top=temp;
+      top = temp;
     }
 
   return RET_SUCCESS;
@@ -370,90 +417,91 @@ int invMenu::paintView()
 {
   if (!viewSet) return OPT_NOT_SET;
 
-  COORD cc;
-  DWORD t=0;
-  short *colCnt=columnWidth;
-  inventory_item *rcd=top;
-  short tx=x,ty=y;
+  short *colCnt = columnWidth;
+  inventory_item *rcd = top;
+  short tx = x,ty = y;
+
+  for (int i = 0; i < height; i++) {
+    setclr(viewColor,width, tx,ty++);
+  }
 
   SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),viewColor);
-  setclr(viewColor,width, x,y);
   if (snCount)
-    tx+=2;
-  gotoxyz(tx,ty);
+    tx += 3;
+  ty = y;
   for (size_t i = 0; i < noOfColumns; i++)
     {
+      gotoxyz(tx,ty);
       fputs(columnNames[i],stdout);
-      gotoxyz(tx+=colCnt[i],ty);
+      tx += colCnt[i];
     }
 
-  int sk=1;
+  int sk = 1;
   char sl[3];
 
   for (size_t j = 0; j < nrec; j++)
     {
       sprintf(sl,"%d",sk);
-      tx=rcd->ix;
-      ty=rcd->iy;
+      tx = rcd->ix;
+      ty = rcd->iy;
       if (snCount)
         {
-          cc= {x,ty};
-          FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE),sl[0],1,cc,&t);
-          // if(sl[1]>'0')
-          //   FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE),sl[1],1,(COORD){short(x+1),ty},&t);
+          gotoxyz(x,ty);
+          fputs(sl,stdout);
           sk++;
         }
-      setclr(viewColor,width, x,ty);
-      gotoxyz(tx,ty);
       for (size_t i = 0; i < noOfColumns; i++)
         {
+          gotoxyz(tx, ty);
           fputs(rcd->szRecord[i],stdout);
-          gotoxyz(tx+=colCnt[i],ty);
+          tx += colCnt[i];
         }
-      rcd=rcd->next;
+      rcd = rcd->next;
     }
-  tx=rcd->ix;
-  ty=rcd->iy;
-  setclr(viewColor,width, x,ty);
+  tx = rcd->ix;
+  ty = rcd->iy;
+  // setclr(viewColor,width, x,ty);
   gotoxyz(tx,ty);
   fputs(rcd->szRecord[0],stdout);
 
+  gotoxyz(0,0);
   SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),cGRAY);
   return RET_SUCCESS;
 }
 
 int invMenu::finalizeView()
 {
-  inventory_item *temp=new inventory_item;
-  char str[]="back";
-  height++;
+  if (!optSet) return OPT_NOT_SET;
+
+  inventory_item *temp = new inventory_item;
+  char str[] = "back";
   // nrec++;
-  temp->szRecord=new char*[1];
-  temp->szRecord[0]=new char[5];
+  temp->szRecord = new char*[1];
+  temp->szRecord[0] = new char[5];
   strcpy(temp->szRecord[0],str);
 
-  temp->ix=(width%2)?(width/2)-2:((width+1)/2)-2;
-  temp->ix+=x;
-  temp->iy=y+height;
-  temp->next=NULL;
+  temp->ix = (width%2) ? (width/2)-2 : ((width+1)/2)-2;
+  temp->ix += x;
+  temp->next = NULL;
 
-  if (top!=NULL)
+  inventory_item *ptr = top;
+  if (top != NULL)
     {
-      inventory_item *ptr=top;
-      while(ptr->next!=NULL)
-        ptr=ptr->next;
-      ptr->next=temp;
+      while(ptr->next != NULL)
+        ptr = ptr->next;
+      ptr->next = temp;
     }
   else
     {
-      top=temp;
+      top = temp;
+      ptr = top;
     }
+ if ((y + height - 1) <= ptr->iy){
+    height++;
+  }
+  temp->iy = y + height - 1;
 
-  if (optSet)
-    {
-      viewSet=1;
-    }
-  else return OPT_NOT_SET;
+  viewSet = 1;
   return RET_SUCCESS;
 }
 
@@ -473,10 +521,10 @@ int invMenu::selectView()
       switch (ir[0].EventType)
         {
         case MOUSE_EVENT:
-          int tt = handleMouse(ir[0].Event.MouseEvent,NULL,top,x,y,height,width,& optn,0,viewColor);
-          if(tt==MOUSE_LEFT_PRESS)
+          int tt = handleMouse(ir[0].Event.MouseEvent,NULL,top,x,y,height,width,& optn,nrec,viewColor);
+          if(tt == MOUSE_LEFT_PRESS)
             {
-              if (optn!=-1)
+              if (optn != -1)
                 return optn;
             }
         }
@@ -537,7 +585,6 @@ int  consoleMenu::selectOption()
                         }
                       break;
                     }
-
                   // past here proper option has been selected
                   item *ptr = start;
                   int itNo=opt;
@@ -571,6 +618,7 @@ int  consoleMenu::selectOption()
                         if (err == RET_CLEAR) break;
                         else if (err == RET_BACK) break;
                       }while (err == NOT_ON_MENU);
+
                       if (!isChild||err==RET_BACK||err==RET_CLEAR) {
                         paintBackground();
                         paintMenu();
@@ -723,7 +771,6 @@ short consoleMenu::setOptions(short tx,
   setBGf(backFlag);
   setMK(mkey);
   setMBG(gh);
-  // consoleMenu::has_parent = 1;
 
   return RET_SUCCESS;
 }
@@ -786,7 +833,6 @@ consoleMenu::~consoleMenu()
   isChildOf=NULL;
   if (start)
     delete start;
-
 }
 
 int consoleMenu::Mset()
@@ -821,7 +867,6 @@ int consoleMenu::Mset()
       if (menuItemVisual & ALIGN_LEFT) menuItemVisual &= ~ALIGN_CENTER;
       else menuItemVisual |= ALIGN_CENTER;
 
-
       if (menuItemVisual & SELECT_BOX)
         {
           menuItemVisual &= ~SELECT_TEXT;
@@ -838,8 +883,6 @@ int consoleMenu::Mset()
     }
 
   char p[5] = "exit";
-
-
 
   if (isChild)
     {
@@ -860,20 +903,6 @@ int consoleMenu::Mset()
               ptr=ptr->next;
               i++;
             }
-
-          // if ((y + menuHeight) > 25)
-          //   {
-          //     int   df = 25 - menuHeight, ff;
-          //     item *ptr = start;
-          //     ff = y - df;
-          //     y  = df;
-          //
-          //     while (ptr != NULL)
-          //       {
-          //         ptr->iy -= ff;
-          //         ptr      = ptr->next;
-          //       }
-          //   }
         }
         else{
           strcpy(p, "back");
@@ -883,8 +912,6 @@ int consoleMenu::Mset()
   else
     {
       newItem(p, NULL);
-      // if(menuItemVisual&ALIGN_LINE)
-      //   menuWidth-=1;
     }
 
   Menuset = 1;
@@ -1101,7 +1128,6 @@ int consoleMenu::paintMenu()
       setcolor(mnBG, menuWidth, tx, ty);
       FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE), ' ', menuWidth, cc,&t);
       SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG);
-      // char q[30] = "";
 
       while (ptr != NULL)
         {
