@@ -47,10 +47,11 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
                 int                w,
                 int               *o,
                 int                mode,
-                unsigned int       mnBG)
+                unsigned int       mnBG,
+                int                flags)
 {
   COORD cc;
-  WORD flags = 0;
+  // WORD flags = 0;
   static short py = -1, f = 0;
 
   if (!top && !stt) {
@@ -87,7 +88,6 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
 
           if(*o != -1)
           {
-            flags = cbackDARKBLUE | cWHITE;
             FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), flags, w, cc,&t);
           }
         }
@@ -142,10 +142,11 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
 
                 if ((ir.dwMousePosition.X >= ttx) && (ir.dwMousePosition.X < xx))
                   {
-                    if (mode & SELECT_HIGHLIGHT)
-                      flags = cbackDARKBLUE | cWHITE;
-                    else if (mode & SELECT_TEXT)
-                      flags = cWHITE | mnBG;
+                     if (mode & SELECT_TEXT)
+                     {
+                       flags = 0x0f & flags;
+                       flags = cWHITE | mnBG;
+                     }
                     cc= {ttx,y};
                     FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), flags, ptr->length,cc, &t);
                     py = ttx;
@@ -168,6 +169,7 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
 
           if (mode & SELECT_BOX) *o = (ir.dwMousePosition.Y - iy) % 2 ? -1 : (ir.dwMousePosition.Y - iy + 1) / 2;
           else *o = ir.dwMousePosition.Y - iy;
+          *o+=1;
           cc = {x,py};
 
           if ((py != ir.dwMousePosition.Y) && !(mode & SELECT_BOX))
@@ -289,7 +291,7 @@ int invMenu::RegView()
 }
 
 int invMenu::setViewOption( char **colNames, short *colW, unsigned short count,int hh,
-                            short tx,short ty,unsigned short clr,bool slCol)
+                            short tx,short ty,unsigned short clr,bool slCol,int ff )
 {
   if(count <= 0)
     return RET_FAILURE;
@@ -320,6 +322,7 @@ int invMenu::setViewOption( char **colNames, short *colW, unsigned short count,i
     return RET_FAILURE;
   if((error=setColName(colNames)) != RET_SUCCESS)
     return RET_FAILURE;
+  highFlag=ff;
 
   return RET_SUCCESS;
 }
@@ -521,7 +524,7 @@ int invMenu::selectView()
       switch (ir[0].EventType)
         {
         case MOUSE_EVENT:
-          int tt = handleMouse(ir[0].Event.MouseEvent,NULL,top,x,y,height,width,& optn,nrec,viewColor);
+          int tt = handleMouse(ir[0].Event.MouseEvent,NULL,top,x,y,height,width,& optn,nrec,viewColor,highFlag);
           if(tt == MOUSE_LEFT_PRESS)
             {
               if (optn != -1)
@@ -573,7 +576,7 @@ int  consoleMenu::selectOption()
             {
               int tt = handleMouse(ir[0].Event.MouseEvent, start,NULL, x, y,
                  (start->iy-y)+(menuItemVisual&SELECT_BOX?ci*2:ci+1),
-                                  menuWidth, &opt, menuItemVisual, mnBG);
+                                  menuWidth, &opt, menuItemVisual, mnBG,highFlag);
 
               if (tt == MOUSE_LEFT_PRESS)
                 {
@@ -741,7 +744,8 @@ short consoleMenu::setOptions(short tx,
                               int   ddelay,
                               int   backFlag,
                               int   toMenuVisual,
-                              int   mkey)
+                              int   mkey,
+                              int   ff)
 {
   if (Opts)
     return OPT_SET_PREV;
@@ -771,6 +775,7 @@ short consoleMenu::setOptions(short tx,
   setBGf(backFlag);
   setMK(mkey);
   setMBG(gh);
+  highFlag = ff;
 
   return RET_SUCCESS;
 }

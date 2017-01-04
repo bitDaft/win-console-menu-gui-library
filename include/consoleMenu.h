@@ -104,7 +104,8 @@ public:
   invMenu();
   ~invMenu();
 //param column names , column width , no of column,x,y,view color,serial number bool.
-  int setViewOption( char **,  short *, unsigned short,int,short,short,unsigned short,bool);
+//use cbackDARKBLUE | cWHITE for last param as default
+  int setViewOption( char **,  short *, unsigned short,int,short,short,unsigned short,bool,int =  cbackDARKBLUE | cWHITE);
   int RegView();
 
   int addEntry(char **);
@@ -122,6 +123,7 @@ private:
   bool snCount;
   bool viewSet;
   unsigned int nrec;
+  int highFlag;
 
   short x,y;
   unsigned short viewColor;
@@ -173,7 +175,8 @@ public:
 
   //options functions
   /** @param x,y coord ,menuBGch ,delay ,setBGf pbj , menuitemvisual , mouseorkey, ischildof **/
-  short setOptions(short, short,int ,int, char, int, int, int, int);
+  //use cbackDARKBLUE | cWHITE for last param as default
+  short setOptions(short, short,int ,int, char, int, int, int, int, int = cbackDARKBLUE | cWHITE);
   int setHW(int,int);
   void setOutcolor(unsigned short);
   void setmnBG(unsigned short);
@@ -211,6 +214,7 @@ private:
   int menuItemVisual;        //menu visual flag
   int cLargestMenuItem;      //count of the largest item in menu
   int menuWidth, menuHeight; // self explanatory
+  int highFlag;
 
   item *start;
   consoleMenu *isChildOf;
