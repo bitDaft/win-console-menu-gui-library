@@ -5,7 +5,7 @@
  * @Email                : anodecode@gmail.com
  * @Filename             : consoleMenu.cpp
  * @Last modified by     : Tausif Ali
- * @Last modified time   : 04-Jan-2017
+ * @Last modified time   : 08-Jan-2017
  * @Copyright            : feel free to use, adding reference appreciated :)
 **/
 
@@ -30,7 +30,7 @@ void gotoxyz(short x, short y)
   SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), c);
 }
 
-void clearScreen(short x, short y, unsigned long t)
+void clearScreen(short x, short y, unsigned long t )
 {
   COORD c = {x,y};
   FillConsoleOutputCharacter(GetStdHandle(STD_OUTPUT_HANDLE), ' ', t, c, &t);
@@ -51,7 +51,6 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
                 int                flags)
 {
   COORD cc;
-  // WORD flags = 0;
   static short py = -1, f = 0;
 
   if (!top && !stt) {
@@ -77,7 +76,7 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
           if (ir.dwMousePosition.Y > y + 1 + mode && ir.dwMousePosition.Y < y + h - 1) {
             *o = -1;
           }
-          else if(ir.dwMousePosition.Y== y + h - 1) *o = 0;
+          else if(ir.dwMousePosition.Y == y + h - 1) *o = 0;
 
           if (py != ir.dwMousePosition.Y)
             {
@@ -125,6 +124,7 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
                   ttx = ptr->ix;
                   xx  = ttx + ptr->length;
                 }
+                *o+=1;
 
               if (ir.dwMousePosition.X == xx) {
                   ttx=-1;
@@ -144,8 +144,8 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
                   {
                      if (mode & SELECT_TEXT)
                      {
-                       flags = 0x0f & flags;
-                       flags = cWHITE | mnBG;
+                       flags = 0x0F & flags;
+                       flags = flags | (mnBG & 0xF0);
                      }
                     cc= {ttx,y};
                     FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), flags, ptr->length,cc, &t);
@@ -179,10 +179,8 @@ int handleMouse(MOUSE_EVENT_RECORD ir,
             }
           x++;
 
-          if (mode & SELECT_HIGHLIGHT)
-            flags = cbackDARKBLUE | cWHITE;
-          else if (mode & SELECT_TEXT)
-            flags = cWHITE | mnBG;
+         if (mode & SELECT_TEXT)
+            flags = (flags & 0x0F) | (mnBG & 0xF0);
 
           cc = {x,py};
           FillConsoleOutputAttribute(GetStdHandle(STD_OUTPUT_HANDLE), flags, w - 2, cc, &t);
@@ -251,6 +249,7 @@ invMenu::invMenu()
   x = y = 0;
   width = 0;
   height = 2;
+  showEnd = 0;
   columnNames = NULL;
   columnWidth = NULL;
   noOfColumns = 0 ;
@@ -258,6 +257,7 @@ invMenu::invMenu()
   optSet = 0;
   nrec = 0;
   viewSet = 0;
+  highFlag = cbackDARKBLUE | cWHITE;
 }
 
 invMenu::~invMenu()
@@ -277,6 +277,11 @@ invMenu::~invMenu()
     delete top;
 }
 
+void invMenu::setHigh(int ff)
+{
+  highFlag = ff;
+}
+
 int invMenu::RegView()
 {
   if (optSet)
@@ -290,8 +295,8 @@ int invMenu::RegView()
     }
 }
 
-int invMenu::setViewOption( char **colNames, short *colW, unsigned short count,int hh,
-                            short tx,short ty,unsigned short clr,bool slCol,int ff )
+int invMenu::setViewOption(const char **colNames, short *colW, unsigned short count,int hh,
+                            short tx,short ty,unsigned short clr,bool slCol,bool shEnd)
 {
   if(count <= 0)
     return RET_FAILURE;
@@ -316,18 +321,18 @@ int invMenu::setViewOption( char **colNames, short *colW, unsigned short count,i
     hh = 2;
   }
   height = hh;
+  showEnd = shEnd;
 
   setNoOfColumns(count);
   if((error=setColWidth(colW)) != RET_SUCCESS)
     return RET_FAILURE;
   if((error=setColName(colNames)) != RET_SUCCESS)
     return RET_FAILURE;
-  highFlag=ff;
 
   return RET_SUCCESS;
 }
 
-int invMenu::setColName(char **cn)
+int invMenu::setColName(const char **cn)
 {
   int i = 0,k;
   columnNames = new char*[noOfColumns];
@@ -371,7 +376,7 @@ void invMenu::setNoOfColumns(unsigned short cc)
   noOfColumns = cc;
 }
 
-int invMenu::addEntry(char **str)
+int invMenu::addEntry(const char **str)
 {
   if (!optSet)
     return OPT_NOT_SET;
@@ -461,11 +466,13 @@ int invMenu::paintView()
         }
       rcd = rcd->next;
     }
-  tx = rcd->ix;
-  ty = rcd->iy;
-  // setclr(viewColor,width, x,ty);
-  gotoxyz(tx,ty);
-  fputs(rcd->szRecord[0],stdout);
+  if(rcd){
+    tx = rcd->ix;
+    ty = rcd->iy;
+    // setclr(viewColor,width, x,ty);
+    gotoxyz(tx,ty);
+    fputs(rcd->szRecord[0],stdout);
+  }
 
   gotoxyz(0,0);
   SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),cGRAY);
@@ -476,34 +483,36 @@ int invMenu::finalizeView()
 {
   if (!optSet) return OPT_NOT_SET;
 
-  inventory_item *temp = new inventory_item;
-  char str[] = "back";
-  // nrec++;
-  temp->szRecord = new char*[1];
-  temp->szRecord[0] = new char[5];
-  strcpy(temp->szRecord[0],str);
+  if(showEnd)
+  {
+    inventory_item *temp = new inventory_item;
+    char str[] = "Back";
+    // nrec++;
+    temp->szRecord = new char*[1];
+    temp->szRecord[0] = new char[5];
+    strcpy(temp->szRecord[0],str);
 
-  temp->ix = (width%2) ? (width/2)-2 : ((width+1)/2)-2;
-  temp->ix += x;
-  temp->next = NULL;
+    temp->ix = (width%2) ? (width/2)-2 : ((width+1)/2)-2;
+    temp->ix += x;
+    temp->next = NULL;
 
-  inventory_item *ptr = top;
-  if (top != NULL)
-    {
-      while(ptr->next != NULL)
-        ptr = ptr->next;
-      ptr->next = temp;
+    inventory_item *ptr = top;
+    if (top != NULL)
+      {
+        while(ptr->next != NULL)
+          ptr = ptr->next;
+        ptr->next = temp;
+      }
+    else
+      {
+        top = temp;
+        ptr = top;
+      }
+   if ((y + height - 1) <= ptr->iy){
+      height++;
     }
-  else
-    {
-      top = temp;
-      ptr = top;
-    }
- if ((y + height - 1) <= ptr->iy){
-    height++;
+    temp->iy = y + height - 1;
   }
-  temp->iy = y + height - 1;
-
   viewSet = 1;
   return RET_SUCCESS;
 }
@@ -515,20 +524,35 @@ int invMenu::selectView()
       return OPT_NOT_SET;
     }
   int optn      = -1;
+  int temp      =  0;
   HANDLE rHwnd = GetStdHandle(STD_INPUT_HANDLE);
   INPUT_RECORD ir[1];
   DWORD numOfEntries;
+  COORD coo;
 
   ReadConsoleInput(rHwnd, ir, 1, &numOfEntries);
 
       switch (ir[0].EventType)
         {
         case MOUSE_EVENT:
+        coo = ir[0].Event.MouseEvent.dwMousePosition;
           int tt = handleMouse(ir[0].Event.MouseEvent,NULL,top,x,y,height,width,& optn,nrec,viewColor,highFlag);
           if(tt == MOUSE_LEFT_PRESS)
             {
-              if (optn != -1)
+              if (optn != -1)  {
+                if(!optn){
+                  temp = 1;
+                  inventory_item *pt = top;
+                  while(pt->next){pt = pt->next;temp++;}
+                  if (!strcmp(pt->szRecord[0],"Back")) return 0;
+                  else return temp;
+                }
                 return optn;
+              }
+            }
+            else if((coo.X >= x && coo.X < x+width)&&(coo.Y>=y && coo.Y < y+height))
+            {
+              return ON_MENU;
             }
         }
   return NOT_ON_MENU;
@@ -547,7 +571,7 @@ item::~item()
     }
 }
 
-item::item(char p[], consoleMenu *tt, int len)
+item::item(const char* p, consoleMenu *tt, int len)
 {
   length     = len;
   midPos     = length % 2 ? length / 2 : (length + 1) / 2;
@@ -590,7 +614,8 @@ int  consoleMenu::selectOption()
                     }
                   // past here proper option has been selected
                   item *ptr = start;
-                  int itNo=opt;
+                  int itNo = opt;
+                  opt--;
                   while (opt-- != 0) ptr = ptr->next;
 
                   // call assosciated function
@@ -618,6 +643,10 @@ int  consoleMenu::selectOption()
 
                        do{
                         err = temp->selectOption();
+                        char chh = err | 0x20;
+                        if (chh >= 'a' || chh <= 'z') {
+                          return err & 0x5F;
+                        }
                         if (err == RET_CLEAR) break;
                         else if (err == RET_BACK) break;
                       }while (err == NOT_ON_MENU);
@@ -628,7 +657,7 @@ int  consoleMenu::selectOption()
                       }
                       if (err == RET_CLEAR) break;
                       else if (err == RET_BACK) break;
-                      itNo=err*10+itNo;
+                      itNo = err * 10 + itNo;
 
                       return itNo;
                     }
@@ -647,7 +676,9 @@ int  consoleMenu::selectOption()
                             }
                         }
                         else  if (!ptr->next) {
-                          quit();
+                          if (!strcmp(ptr->szMenuItem,endName)) {
+                            return 0;
+                          }
                         }
                       return itNo;
                     }
@@ -655,16 +686,17 @@ int  consoleMenu::selectOption()
               break;
             }
 
-        // case KEY_EVENT:
-        //
-        //   if (MouseOrKey & USE_KEY)
-        //     {
-        //       handleKey(ir[i].Event.KeyEvent, start);
-        //       break;
-        //     }
+        case KEY_EVENT:
 
-        default:
-          break;
+          if (MouseOrKey & USE_KEY)
+            {
+              // handleKey(ir[i].Event.KeyEvent, start);
+              if(ir[0].Event.KeyEvent.bKeyDown)
+              {
+                return (int)ir[0].Event.KeyEvent.uChar.AsciiChar;
+              }
+              break;
+            }
         }
   return NOT_ON_MENU;
 }
@@ -680,11 +712,13 @@ void consoleMenu::setcolor(unsigned short m = cGRAY,
                              (PDWORD)&t);
 }
 
-consoleMenu::consoleMenu(char *str)
+consoleMenu::consoleMenu(const char *str)
 {
   colr             = cGRAY;
   mnBG             = cBLUE;
 
+  pHead            = 0;
+  showEnd          = 0;
   Opts             = 0;
   Menuset          = 0;
   isChild          = 0;
@@ -692,6 +726,7 @@ consoleMenu::consoleMenu(char *str)
   x                = 0;
   y                = 0;
 
+  endName          = NULL;
   szName           = new char[strlen(str) + 1];
   strcpy(szName, str);
   menuBGch         = ' ';
@@ -704,6 +739,7 @@ consoleMenu::consoleMenu(char *str)
   cLargestMenuItem = 0;
   menuWidth        = 4;
   menuHeight       = 4;
+  highFlag         = cbackDARKBLUE | cWHITE;
 
   start            = NULL;
   isChildOf        = NULL;
@@ -740,12 +776,15 @@ short consoleMenu::setOptions(short tx,
                               short ty,
                               int   hgt,
                               int   wid,
-                              char  gh,
                               int   ddelay,
                               int   backFlag,
                               int   toMenuVisual,
                               int   mkey,
-                              int   ff)
+                              bool  header,
+                              bool  headpos,
+                              bool  shEnd,
+                              const char  *end
+                              )
 {
   if (Opts)
     return OPT_SET_PREV;
@@ -764,7 +803,7 @@ short consoleMenu::setOptions(short tx,
   }
   else
   {
-    if (toMenuVisual&SELECT_BOX) hgt-=hgt&1?1:0;
+    if (toMenuVisual&SELECT_BOX) hgt -= hgt & 1 ? 1 : 0;
     if(setHW(hgt,wid) != RET_SUCCESS) return OPT_SET_PREV;
   }
 
@@ -774,10 +813,20 @@ short consoleMenu::setOptions(short tx,
   setDelay(ddelay);
   setBGf(backFlag);
   setMK(mkey);
-  setMBG(gh);
-  highFlag = ff;
+
+  endName = new char[strlen(end)+1];
+  strcpy(endName,end);
+
+  posHead  = headpos;
+  showEnd  = shEnd;
+  pHead    = header;
 
   return RET_SUCCESS;
+}
+
+void consoleMenu::setHigh(int ff)
+{
+  highFlag = ff;
 }
 
 void consoleMenu::setCoord(short tx, short ty)
@@ -816,8 +865,9 @@ void consoleMenu::setChildFlag(short k)
   isChild = k;
 }
 
-void consoleMenu::setOutcolor(unsigned short d)
+void consoleMenu::setOutcolor(unsigned short d,unsigned char  gh)
 {
+  setMBG(gh);
   colr = d;
 }
 
@@ -887,8 +937,6 @@ int consoleMenu::Mset()
         }
     }
 
-  char p[5] = "exit";
-
   if (isChild)
     {
       if (isChildOf->menuItemVisual & ALIGN_LINE)
@@ -904,19 +952,20 @@ int consoleMenu::Mset()
           int i=1;
           while (ptr!=NULL)
             {
-              ptr->iy = y+i;
+              ptr->iy = y + i;
               ptr=ptr->next;
               i++;
             }
         }
         else{
-          strcpy(p, "back");
-          newItem(p, NULL);
+          strcpy(endName, "Back");
+          newItem(endName, NULL);
         }
     }
   else
     {
-      newItem(p, NULL);
+      if(showEnd)
+        newItem(endName, NULL);
     }
 
   Menuset = 1;
@@ -924,7 +973,7 @@ int consoleMenu::Mset()
   return RET_SUCCESS;
 }
 
-int consoleMenu::newItem(char *p, consoleMenu *mm)
+int consoleMenu::newItem(const char *p, consoleMenu *mm)
 {
   if (!Opts) return OPT_NOT_SET;
 
@@ -975,13 +1024,12 @@ int consoleMenu::newItem(char *p, consoleMenu *mm)
 
   if (mm != NULL)
     {
-      mm->setOutcolor(colr);
+      mm->setOutcolor(colr,menuBGch);
       mm->setChildFlag(IS_CHILD);
       mm->setSuper(this);
       mm->setBGf(pbj);
       mm->setMK(MouseOrKey);
       mm->setmnBG(mnBG);
-      mm->setMBG(menuBGch);
       mm->setDelay(displayDelay);
 
       if (menuItemVisual & ALIGN_LINE)
@@ -1149,8 +1197,12 @@ int consoleMenu::paintMenu()
   else if (menuItemVisual & (ALIGN_CENTER | ALIGN_LEFT))
     {
       int menuCenter = menuWidth / 2;
+      int yt = ty;
+      if (!pHead) {
+        yt+=2;
+      }
 
-      for (int i = ty; i < ty+menuHeight; i++)
+      for (int i = yt; i < ty+menuHeight; i++)
       {
         setcolor(mnBG,menuWidth,tx,i);
         cc= {tx,(short)i};
@@ -1158,14 +1210,16 @@ int consoleMenu::paintMenu()
       }
 
       SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), mnBG);
-      if (!(isChild && isChildOf->menuItemVisual&ALIGN_LINE))
+      if (!(isChild && isChildOf->menuItemVisual&ALIGN_LINE) && pHead)
       {
-        gotoxyz(tx+1,ty+1);
+        int headLen = strlen(szName);
+        if(posHead)
+          gotoxyz(((menuCenter-(headLen % 2 ? headLen / 2 : (headLen + 1)/2))+tx),ty+1);
+        else
+          gotoxyz(tx+1,ty+1);
         fputs(szName,stdout);
       }
-
       int itemStart;
-
       while(ptr!=NULL)
       {
         itemStart = menuItemVisual & ALIGN_CENTER ? (menuCenter - ptr->midPos) +

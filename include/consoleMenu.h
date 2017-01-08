@@ -5,7 +5,7 @@
  * @Email                : anodecode@gmail.com
  * @Filename             : consoleMenu.h
  * @Last modified by     : Tausif Ali
- * @Last modified time   : 04-Jan-2017
+ * @Last modified time   : 08-Jan-2017
  * @Copyright            : feel free to use, adding reference appreciated :)
 **/
 
@@ -60,6 +60,7 @@
 #define LINE_MENU_OVERFLOW    -12
 #define MENU_NOT_SET          -13
 #define MENU_EMPTY            -14
+#define ON_MENU               -15
 
 //flags passed to paintBackground func
 #define ENABLE_PLAIN          1
@@ -105,10 +106,19 @@ public:
   ~invMenu();
 //param column names , column width , no of column,x,y,view color,serial number bool.
 //use cbackDARKBLUE | cWHITE for last param as default
-  int setViewOption( char **,  short *, unsigned short,int,short,short,unsigned short,bool,int =  cbackDARKBLUE | cWHITE);
+  int setViewOption(const char **str,
+                    short *colWidth,
+                    unsigned short noOfColumns,
+                    int height,
+                    short x,
+                    short y,
+                    unsigned short mnColor,
+                    bool snCount,
+                    bool showEnd);
+  void setHigh(int ff);
   int RegView();
 
-  int addEntry(char **);
+  int addEntry(const char **str);
   int finalizeView();
   int paintView();
   int selectView();
@@ -120,6 +130,7 @@ private:
   short *columnWidth;
   int width,height;
   bool optSet;
+  bool showEnd;
   bool snCount;
   bool viewSet;
   unsigned int nrec;
@@ -130,7 +141,8 @@ private:
 
   inventory_item *top;
 
-  int setColName( char **);
+
+  int setColName(const char **);
   int setColWidth( short *);
   void setNoOfColumns( unsigned short);
 };
@@ -158,16 +170,17 @@ struct item
    item        *next;
    consoleMenu *mm;
 
-   item(char*, consoleMenu*, int);
+   item(const char*, consoleMenu*, int);
    ~item();
 };
 
 void clearScreen(short, short, unsigned long = 80*25);
+void quit();
 
 class consoleMenu
 {
 public:
-  consoleMenu(char[]);
+  consoleMenu(const char *str);
   ~consoleMenu();
 
   //this is the order of calling the functions setOptions to selectOption
@@ -176,14 +189,26 @@ public:
   //options functions
   /** @param x,y coord ,menuBGch ,delay ,setBGf pbj , menuitemvisual , mouseorkey, ischildof **/
   //use cbackDARKBLUE | cWHITE for last param as default
-  short setOptions(short, short,int ,int, char, int, int, int, int, int = cbackDARKBLUE | cWHITE);
-  int setHW(int,int);
-  void setOutcolor(unsigned short);
-  void setmnBG(unsigned short);
+  short setOptions(short x,
+                   short y,
+                   int height,
+                   int width,
+                   int delay,
+                   int BGType,
+                   int menuitemvisual,
+                   int mouseorkey,
+                   bool showMenuHead,
+                   bool centerHead,
+                   bool showEnd,
+                   const char *endString);
+  int setHW(int height,int width);
+  void setHigh(int ff);
+  void setOutcolor(unsigned short outBGVsl,unsigned char menuBGChar);
+  void setmnBG(unsigned short inBGVsl);
 
   int RegisterOptions();
   // int newItem(char *, void (*t)(), consoleMenu*);
-  int newItem(char *, consoleMenu*);
+  int newItem(const char *str, consoleMenu* pMenu);
 
   int Mset();
 
@@ -198,12 +223,16 @@ private:
   // static short has_parent;
   unsigned short colr, mnBG; //outside color and menu color
 
+  bool posHead;
+  bool showEnd;
+  bool pHead;
   bool Opts;                 //checks whether the options of a menu has been set
   bool Menuset;
   bool isChild;              //check whether it is a child
   bool HWSet;                //check whether height width set
   short x, y;                //coordinates of menu
 
+  char *endName;
   char *szName;              // name of menu
   char menuBGch;             // menu bg character
 
@@ -218,6 +247,7 @@ private:
 
   item *start;
   consoleMenu *isChildOf;
+
 
   void setMK(int);
   void setBGf(int);

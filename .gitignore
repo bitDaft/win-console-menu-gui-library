@@ -1,5 +1,5 @@
 *.cbp
-**cscope_file_list
+*.cscope_file_list
 *.depend
 *.layout
 *.sublime-project
